@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GlassMate</string>
+    <string name="glass_voice_trigger">how do I</string>
+    <string name="glass_voice_prompt">what do you want to do?</string>
+</resources>
