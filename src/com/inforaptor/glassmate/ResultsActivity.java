@@ -49,8 +49,6 @@ public class ResultsActivity extends Activity implements SensorEventListener, Te
 	protected SensorManager mSensorManager;
 	protected Sensor mSensor;
 	protected int mLastAccuracy;
-	//protected float[] gravity = {1, 3, 2};
-	//protected float linear_acceleration[];
 	protected int cooloff = 0;
 
 	private TextToSpeech tts;
@@ -98,8 +96,6 @@ public class ResultsActivity extends Activity implements SensorEventListener, Te
 						Card card1 = new Card(getBaseContext());
 						card1.setText(resultsArray[0]);
 						// Don't call this if you're using TimelineManager
-						View card1View = card1.toView();
-						//setContentView(card1View);/////////////////////////////
 						// Create scrolling card view
 						mCardScrollView = new CardScrollView(this);
 						ExampleCardScrollAdapter adapter = new ExampleCardScrollAdapter();
