@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -31,6 +30,7 @@ import android.os.StrictMode;
 import android.speech.RecognizerIntent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -59,6 +59,8 @@ public class ResultsActivity extends Activity implements SensorEventListener, Te
 		StrictMode.setThreadPolicy(policy); 
 
 		super.onCreate(savedInstanceState);
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
 		tts = new TextToSpeech(this, this);
 		setContentView(R.layout.activity_results);
 		// Get voice input
@@ -104,8 +106,6 @@ public class ResultsActivity extends Activity implements SensorEventListener, Te
 						setContentView(mCardScrollView);
 						// Must be called after card scroll view
 						SR_activate();
-						// Read out first card
-						speakOut(mResultsTTS[0]);
 					}
 				} else {
 					//Closes the connection.
@@ -227,7 +227,7 @@ public class ResultsActivity extends Activity implements SensorEventListener, Te
 				System.out.print("Scroll right :: ");
 				System.out.println(event.values[0]);
 				int currentIndex = mCardScrollView.getSelectedItemPosition();
-				if (currentIndex < mCardScrollView.getChildCount() - 1) {
+				if (currentIndex < 6) {     //mCardScrollView.getChildCount() - 1) {
 					mCardScrollView.setSelection(currentIndex + 1);
 					speakOut(mResultsTTS[currentIndex + 1]);
 				}
