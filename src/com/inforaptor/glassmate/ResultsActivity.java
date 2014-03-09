@@ -2,9 +2,12 @@ package com.inforaptor.glassmate;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,19 +28,24 @@ import com.google.android.glass.widget.CardScrollAdapter;
 import com.google.android.glass.widget.CardScrollView;
 
 import android.app.Activity;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.StrictMode;
+import android.provider.MediaStore.Images;
 import android.speech.RecognizerIntent;
 import android.view.View;
 import android.view.ViewGroup;
-
 import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 
-public class ResultsActivity extends Activity { implements SensorEventListener{
+public class ResultsActivity extends Activity implements SensorEventListener{
 	
 	private List<Card> mCards;
     private CardScrollView mCardScrollView;
@@ -48,22 +56,20 @@ public class ResultsActivity extends Activity { implements SensorEventListener{
     protected SensorManager mSensorManager;
     protected Sensor mSensor;
     protected int mLastAccuracy;
-    protected float gravity[];
-    protected float linear_acceleration[];
+    //protected float[] gravity = {1, 3, 2};
+    //protected float linear_acceleration[];
     protected int cooloff = 0;
     
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-        mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);	
-        mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-		activate();
 		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 		StrictMode.setThreadPolicy(policy); 
 		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_results);
 		// Get voice input
+		if (getIntent() != null) {
 		ArrayList<String> voiceResults = getIntent().getExtras().getStringArrayList(RecognizerIntent.EXTRA_RESULTS);
 		// Request from server
 		String query = voiceResults.get(0);
@@ -75,6 +81,45 @@ public class ResultsActivity extends Activity { implements SensorEventListener{
 			System.out.println("bad encoding");
 		}
 		url += query;
+		}
+		
+		// andy's distinctly dubious code begins here
+		
+		Card card1 = new Card(getBaseContext());
+		card1.setText("I am plotting your downfall");
+		View card1View = card1.toView();
+		
+		String[] names = {"Ickenham", "Twickenham", "Tottenham", "Penge"};
+		String[] URLs = {"http://www.doc.ic.ac.uk/~am8113/images/01.jpg", "http://www.doc.ic.ac.uk/~am8113/images/02.jpg", "http://www.doc.ic.ac.uk/~am8113/images/03.jpg", "http://www.doc.ic.ac.uk/~am8113/images/04.jpg"};
+		//String[] URLs = {"http://www.doc.ic.ac.uk/~am8113/images/01.bmp", "http://www.doc.ic.ac.uk/~am8113/images/02.bmp", "http://www.doc.ic.ac.uk/~am8113/images/03.bmp", "http://www.doc.ic.ac.uk/~am8113/images/04.bmp"};
+		mCards = new ArrayList<Card>();
+		Card card;
+		for (int i = 0; i < 4; i++) {
+	        card = new Card(this);
+	        card.setText(names[i]);
+	        
+	        
+	        card.setImageLayout(Card.ImageLayout.FULL);
+	        System.out.println("dbg::1");
+	        Bitmap image = loadBitmap(URLs[i]);
+	        System.out.println("dbg::2");
+	        Drawable d = new BitmapDrawable(getResources(), image);
+	        Uri imageURI = getImageUri(this, image);
+	        System.out.println("dbg::3");
+	        card.addImage(imageURI);
+	        System.out.println("dbg::4");
+	        
+	        mCards.add(card);
+		}
+		
+        mCardScrollView = new CardScrollView(this);
+        ExampleCardScrollAdapter adapter = new ExampleCardScrollAdapter();
+        mCardScrollView.setAdapter(adapter);
+        mCardScrollView.activate();
+        setContentView(mCardScrollView);
+        SR_activate();
+        
+		/*
 		try {
 			HttpResponse response = makeHTTPCall(url);
 			// Handle the response
@@ -111,9 +156,11 @@ public class ResultsActivity extends Activity { implements SensorEventListener{
 		        response.getEntity().getContent().close();
 		        throw new IOException(statusLine.getReasonPhrase());
 		    }
+		    
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		*/
 	}
 	
 	public HttpResponse makeHTTPCall(String url) {
@@ -207,38 +254,70 @@ public class ResultsActivity extends Activity { implements SensorEventListener{
 
  
       @Override
-      public void onSensorChanged(SensorEvent event) { 
+      public void onSensorChanged(SensorEvent event) {
+    	//System.out.println("Sensor val changed");
+    	  
     	if (cooloff > 0)
     		cooloff--;
     	else {
-			// alpha is calculated as t / (t + dT)
-            // with t, the low-pass filter's time-constant
-            // and dT, the event delivery rate
-
-            final float alpha = (float) 0.8;
-
-            gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
-            gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
-            gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
-
-            linear_acceleration[0] = event.values[0] - gravity[0];
-            linear_acceleration[1] = event.values[1] - gravity[1];
-            linear_acceleration[2] = event.values[2] - gravity[2];
-
-    		if (linear_acceleration[0] > 6) {
+    		
+    		if (event.values[0] > 1.5) {
     			cooloff = 60;
-    			System.out.println("Hard right");
+    			System.out.print("Scroll right :: ");
+    			System.out.println(event.values[0]);
+    			int currentIndex = mCardScrollView.getSelectedItemPosition();
+    			if (currentIndex < mCardScrollView.getChildCount() - 1) {
+    				mCardScrollView.setSelection(currentIndex + 1);
+    			}
+    			else {
+    				System.out.println("End of cards");
+    			}
     		}
     			
-    		else if (linear_acceleration[0] < -6) {
+    		else if (event.values[0] < -1.2) {
     			cooloff = 60;
-    			System.out.println("Hard left");
+    			System.out.print("Scroll left :: ");
+    			System.out.println(event.values[0]);
+    			int currentIndex = mCardScrollView.getSelectedItemPosition();
+    			if (currentIndex > 0) {
+    				mCardScrollView.setSelection(currentIndex - 1);
+    			}
+    			else {
+    				System.out.println("Beginning of cards");
+    			}
+    		}
+    		
+    		else if (event.values[1] < 8) {
+    			cooloff = 60;
+    			System.out.print("Scroll down :: ");
+    			System.out.println(event.values[1]);
     		}
     	}
     }
+      
+      public Uri getImageUri(Context inContext, Bitmap inImage) {
+    	  ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    	  inImage.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+    	  String path = Images.Media.insertImage(inContext.getContentResolver(), inImage, "Title", null);
+    	  return Uri.parse(path);
+    	} 
+      
+    public static Bitmap loadBitmap(String url) {
+    	 Bitmap bitmap = null;
+    	     try {
+    	    	 bitmap = BitmapFactory.decodeStream((InputStream)new URL(url).getContent());
+    	     } 
+    	     catch (MalformedURLException e) {
+    	    	 e.printStackTrace();
+    	     } 
+    	     catch (IOException e) {
+    	    	 e.printStackTrace();
+    	     }
+    	return bitmap;
+    }
              
       
-    public void deactivate() {
+    public void SR_deactivate() {
         if (mSensorManager == null)
             return;
         
@@ -247,21 +326,30 @@ public class ResultsActivity extends Activity { implements SensorEventListener{
         mSensor = null;
     }
       
-    public void activate() {
+    public void SR_activate() {
         if (mSensorManager != null)
             return; // already active
-        
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_GAME);
 
     }	
 
     @Override
     protected void onStop() {
-    	//deactivate();
+    	super.onStop();
+    	SR_deactivate();
     }
 
+    @Override
     protected void onRestart() {
-    	//activate();
+    	super.onRestart();
+    	SR_activate();
     }
-
+    
+    @Override
+    protected void onStart() {
+        super.onStart();
+        //SR_activate();
+    }
 }
