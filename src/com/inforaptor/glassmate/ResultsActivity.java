@@ -31,13 +31,33 @@ import android.speech.RecognizerIntent;
 import android.view.View;
 import android.view.ViewGroup;
 
-public class ResultsActivity extends Activity {
+import android.content.Context;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+
+public class ResultsActivity extends Activity { implements SensorEventListener{
 	
 	private List<Card> mCards;
     private CardScrollView mCardScrollView;
     
+    
+    // Variables for sensormanager
+    protected float mScaleFactor = 1;
+    protected SensorManager mSensorManager;
+    protected Sensor mSensor;
+    protected int mLastAccuracy;
+    protected float gravity[];
+    protected float linear_acceleration[];
+    protected int cooloff = 0;
+    
+    
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+        mSensorManager = (SensorManager) this.getSystemService(Context.SENSOR_SERVICE);	
+        mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		activate();
 		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 		StrictMode.setThreadPolicy(policy); 
 		
@@ -176,4 +196,72 @@ public class ResultsActivity extends Activity {
             return mCards.get(position).toView();
         }
     }
+
+    // Functions for sensorlistener
+
+    @Override
+    public void onAccuracyChanged(Sensor arg0, int arg1) {
+        // TODO Auto-generated method stub
+        
+    }
+
+ 
+      @Override
+      public void onSensorChanged(SensorEvent event) { 
+    	if (cooloff > 0)
+    		cooloff--;
+    	else {
+			// alpha is calculated as t / (t + dT)
+            // with t, the low-pass filter's time-constant
+            // and dT, the event delivery rate
+
+            final float alpha = (float) 0.8;
+
+            gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
+            gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
+            gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
+
+            linear_acceleration[0] = event.values[0] - gravity[0];
+            linear_acceleration[1] = event.values[1] - gravity[1];
+            linear_acceleration[2] = event.values[2] - gravity[2];
+
+    		if (linear_acceleration[0] > 6) {
+    			cooloff = 60;
+    			System.out.println("Hard right");
+    		}
+    			
+    		else if (linear_acceleration[0] < -6) {
+    			cooloff = 60;
+    			System.out.println("Hard left");
+    		}
+    	}
+    }
+             
+      
+    public void deactivate() {
+        if (mSensorManager == null)
+            return;
+        
+        mSensorManager.unregisterListener(this);
+        mSensorManager = null;
+        mSensor = null;
+    }
+      
+    public void activate() {
+        if (mSensorManager != null)
+            return; // already active
+        
+        mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_GAME);
+
+    }	
+
+    @Override
+    protected void onStop() {
+    	//deactivate();
+    }
+
+    protected void onRestart() {
+    	//activate();
+    }
+
 }
